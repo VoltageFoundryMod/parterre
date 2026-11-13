@@ -289,7 +289,12 @@ function _quote(val, ...)
     end
     return table.concat(t, ',')
   elseif type(val) == 'string' then return string.format('%q',val)
-  elseif type(val) == 'number' then return string.format('%.6g',val):gsub("%.?0+$","") -- 6 sig figures
+  elseif type(val) == 'number' then
+    -- 6 significant figures; trailing zeros go only after a decimal point
+    -- (stripping them from "100" or "0" lost digits)
+    local s = string.format('%.6g',val)
+    if s:find('%.') and not s:find('e') then s = s:gsub('0+$',''):gsub('%.$','') end
+    return s
   elseif type(val) ~= 'table' then return tostring(val)
   else -- recur per table element
     local t = {}
