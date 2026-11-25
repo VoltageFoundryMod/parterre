@@ -1,4 +1,4 @@
-#define III_VERSION "v1.1.2"
+#define III_VERSION "v1.1.3"
 
 #include "pico/stdlib.h"
 

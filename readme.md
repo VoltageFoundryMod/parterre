@@ -23,6 +23,8 @@ Please post to the [iii thread](https://llllllll.co/t/iii/74311/) on the lines f
 
 Fixes always welcome. Please consult us prior to submitting substantial feature additions.
 
+This codebase was written by humans and we intend to keep it maintainable and understandable by humans. LLM-generated content will be declined. Use of LLMs for research, analysis, or bug discovery is your own business.
+
 
 ## Credits
 
