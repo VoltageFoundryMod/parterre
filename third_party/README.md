@@ -49,14 +49,14 @@ To check a patch against upstream: `git -C <tehn/iii clone> apply --check <patch
 | `e9d184b`            | truncate lib.lua when rewriting it                               | a shorter new lib.lua kept the old tail and failed to compile (nothing in lib.lua ran)                                                                                                                  | merged #10 |
 | `9d0a494`            | 4 KB serial TX that drains when full; 512 B RX (fixups `8ac65d0`, `35ac790`) | −15.5 KB static RAM; prints and downloads of any size get through; a host that never reads costs one 250 ms wait                                                                                        | merged #12 |
 | `e4e1b89`            | keep output printed before a host connects (fixup `9dabcc7`)     | startup prints (e.g. many-roads' script list, `-- init:` lines) show up when diii connects                                                                                                              | merged #12 |
-| `2370d87`            | optional fixed offset for the status sector and filesystem       | a device can pin them (`III_FLASH_STATUS_OFFSET`) so updates that grow the program keep the files; we use 0x80000 | to send   |
+| `2370d87`            | optional fixed offset for the status sector and filesystem       | a device can pin them (`III_FLASH_STATUS_OFFSET`) so updates that grow the program keep the files; we use 0x80000 | PR #15    |
 | `262253f`, `08e814d`, `49a5762` | lib.lua version `v1.1.2-ogN`                          | fork-only, so devices replace their lib.lua; don't send                                                                                                                                                 | fork only |
 | (upstream)           | USB MIDI sends only a message's own bytes                        | from achene; a clock went out as F8 00 00, the zeros as stray packets; came in with the merge `ff6bb66`                                                                                                 | merged #14 |
 | (upstream)           | `_quote` keeps the zeros of whole numbers                        | from achene; `pset_write` wrote 0 as nothing and 100 as 1; came in with the merge `ff6bb66`                                                                                                             | merged #13 |
 
 PR numbers are on [tehn/iii](https://codeberg.org/tehn/iii/pulls): #10 to #12 posted 2026-10-15
 (squashed, no `iii:` prefix; branches `pr1-fixes`, `pr2-loading`, `pr3-serial` in carlosedp/iii),
-#13 and #14 from achene (branches `quote`, `midibytes`). All five were merged on 2026-11-25 and
+#13 and #14 from achene (branches `quote`, `midibytes`); #15 (flash offset, branch `flash-offset`) posted 2026-11-25. All five were merged on 2026-11-25 and
 pulled in with `make iii-pull-upstream` (merge `ff6bb66`). Upstream's checked-in
 `resource/lib_lua.c` still holds the v1.1.2 `lib.lua` (without #13); our build regenerates it, so
 that only matters to devices built from upstream as is. The MIDI helpers are held back: no gain
