@@ -26,6 +26,11 @@ Fixes always welcome. Please consult us prior to submitting substantial feature 
 This codebase was written by humans and we intend to keep it maintainable and understandable by humans. LLM-generated content will be declined. Use of LLMs for research, analysis, or bug discovery is your own business.
 
 
+## Respect
+
+Please do not clone monome designs for commercial purposes. It directly impacts us and the community negatively, making us less compelled to share sources. We've shared these resources to help new ideas become real. Please go have new ideas, we'd love to see them.
+
+
 ## Credits
 
 iii is a [monome](https://monome.org) initiative. Designed and coded primarily by [tehn](https://nnnnnnnn.co) and [Ezra Buchla](https://ezrabuchla.com).
