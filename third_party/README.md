@@ -4,7 +4,7 @@ Copied in-tree (not git submodules) so the repo builds on its own.
 
 | Directory          | Upstream                                             | Base      | License | How it is kept                                           |
 | ------------------ | ---------------------------------------------------- | --------- | ------- | -------------------------------------------------------- |
-| `iii/`             | https://codeberg.org/tehn/iii                        | `ed920ef` | GPL-3.0 | **git subtree**, v1.1.2; our changes are commits on top  |
+| `iii/`             | https://codeberg.org/tehn/iii                        | `1b1cbe2` | GPL-3.0 | **git subtree**, v1.1.3 + main; our changes are commits on top  |
 | `lua/`             | https://codeberg.org/tehn/lua                        | `86c9ee5` | MIT     | unmodified export; monome's Lua 5.4 fork (32-bit config) |
 | `littlefs/`        | https://codeberg.org/tehn/littlefs                   | `e3eefe8` | BSD-3   | unmodified export; only `lfs*.{c,h}`, license and readme |
 | `FREEPOET_Keypad/` | https://github.com/FREEPOET-OFFICIAL/FREEPOET_Keypad | `00893c1` | MIT     | unmodified export; register reference for our C driver   |
@@ -49,18 +49,20 @@ To check a patch against upstream: `git -C <tehn/iii clone> apply --check <patch
 | `e9d184b`            | truncate lib.lua when rewriting it                               | a shorter new lib.lua kept the old tail and failed to compile (nothing in lib.lua ran)                                                                                                                  | merged #10 |
 | `9d0a494`            | 4 KB serial TX that drains when full; 512 B RX (fixups `8ac65d0`, `35ac790`) | −15.5 KB static RAM; prints and downloads of any size get through; a host that never reads costs one 250 ms wait                                                                                        | merged #12 |
 | `e4e1b89`            | keep output printed before a host connects (fixup `9dabcc7`)     | startup prints (e.g. many-roads' script list, `-- init:` lines) show up when diii connects                                                                                                              | merged #12 |
-| `2370d87`            | optional fixed offset for the status sector and filesystem       | a device can pin them (`III_FLASH_STATUS_OFFSET`) so updates that grow the program keep the files; we use 0x80000 | PR #15    |
-| `262253f`, `08e814d`, `49a5762` | lib.lua version `v1.1.2-ogN`                          | fork-only, so devices replace their lib.lua; don't send                                                                                                                                                 | fork only |
+| `2370d87`            | optional fixed offset for the status sector and filesystem       | a device can pin them (`III_FLASH_STATUS_OFFSET`) so updates that grow the program keep the files; we use 0x80000 | merged #15 |
+| `262253f`, `08e814d`, `49a5762`, `0b36e9a` | lib.lua version `v1.1.x-ogN`                       | fork-only, so devices replace their lib.lua; don't send                                                                                                                                                 | fork only |
 | (upstream)           | USB MIDI sends only a message's own bytes                        | from achene; a clock went out as F8 00 00, the zeros as stray packets; came in with the merge `ff6bb66`                                                                                                 | merged #14 |
 | (upstream)           | `_quote` keeps the zeros of whole numbers                        | from achene; `pset_write` wrote 0 as nothing and 100 as 1; came in with the merge `ff6bb66`                                                                                                             | merged #13 |
 
 PR numbers are on [tehn/iii](https://codeberg.org/tehn/iii/pulls): #10 to #12 posted 2026-10-15
 (squashed, no `iii:` prefix; branches `pr1-fixes`, `pr2-loading`, `pr3-serial` in carlosedp/iii),
-#13 and #14 from achene (branches `quote`, `midibytes`); #15 (flash offset, branch `flash-offset`) posted 2026-11-25. All five were merged on 2026-11-25 and
-pulled in with `make iii-pull-upstream` (merge `ff6bb66`). Upstream's checked-in
-`resource/lib_lua.c` still holds the v1.1.2 `lib.lua` (without #13); our build regenerates it, so
-that only matters to devices built from upstream as is. The MIDI helpers are held back: no gain
-on their own (see docs/BENCHMARKS.md).
+#13 and #14 from achene (branches `quote`, `midibytes`), #15 (branch `flash-offset`) on
+2026-11-25. All six are merged on 2026-11-25: #10 to #14 (pulled in with `make
+iii-pull-upstream`, merge `ff6bb66`), #15 the same day, with v1.1.3 (merge `0b36e9a`). The
+MIDI helpers are the only code change left, held back: no gain on their own (see
+docs/BENCHMARKS.md). Upstream's checked-in `resource/lib_lua.c` still holds the v1.1.2
+`lib.lua` (without #13), even in v1.1.3; our build regenerates it, so that only matters to
+devices built from upstream as is.
 
 `make iii-patches` exports every iii commit since the subtree was added. When a
 change lands upstream, mark it *merged* here; to leave it out of later
