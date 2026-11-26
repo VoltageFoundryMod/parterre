@@ -14,6 +14,7 @@ full collection. Before that, `midi_to_msg` meant what is now `alloc+gc`.
 
 | Build              | Clock   | Script | Lua   | Heap free / largest | High water   | loop    | midi_to_msg | alloc+gc | gc      | redraw  |
 | ------------------ | ------- | ------ | ----- | ------------------- | ------------ | ------- | ----------- | -------- | ------- | ------- |
+| parterre-0.4.5     | 125 MHz | kria   | 107.2 | 102.5 / 58.4        | 137.4 of 221 | 4.64 µs | 53.1 µs     | 57.1 µs  | 1.60 ms | 1.01 ms |
 | og-0.3.3 +Lua midi | 125 MHz | -      | 43.5  | 171.7 / 89.4        | 67.2 of 223  | 4.60 µs | 42.0 µs     | 54.6 µs  | 2.46 ms | 0.98 ms |
 | og-0.3.3 C midi    | 125 MHz | -      | 41.7  | 173.5 / 88.9        | 71.2 of 223  | 4.60 µs | 46.8 µs     | 52.9 µs  | 2.88 ms | 0.99 ms |
 | og-0.3.3 fresh     | 125 MHz | kria   | 110.6 | 99.4 / 61.3         | 155.2 of 223 | 4.60 µs | 47.0 µs     | 54.2 µs  | 2.18 ms | 1.00 ms |
@@ -41,6 +42,17 @@ og-0.2.1 + kria: out of memory while loading (fixed by the streaming loader in o
 
 ## Findings
 
+- **Cached bytecode** (parterre-0.4.5, kria loaded from `kria_iii.luac`): loading kria peaks
+  at 137.4 KB, against 149.4 KB when the same build compiles it (that boot's high water) and
+  155.2 of 223 for og-0.3.3. Lua 107.2 KB (110.6 before; the C MIDI helpers are 1.8 of it).
+  Speed unchanged: loop and redraw as before, midi_to_msg and alloc+gc within what code layout
+  moves.
+- **gc column changed** (November 2026, og_bench.lua): it now clears the garbage first and
+  averages 10 full collections. It used to be one collection right after the alloc+gc loop,
+  so it also freed whatever garbage that loop left, which depends on where the collector's
+  cycle stopped: on 0.4.5 with kria, 8.3 ms after a cached load and 2.3 ms after a compile,
+  each repeating to 0.02 ms from boot to boot, while the clean collection is 1.5-1.6 ms either
+  way. gc values above this row aren't comparable with it.
 - **200 MHz** (og-0.2.9-200mhz vs og-0.2.9): 1.6× (gc, redraw) to 2.3× (loop) faster; memory
   unchanged.
 - **Flash clock differs per board** (pico-sdk board headers): the XIAO runs flash at clk/2
