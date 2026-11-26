@@ -1,3 +1,4 @@
+#include <string.h>
 #include "hardware/watchdog.h"
 #include "pico/bootrom.h"
 
@@ -229,11 +230,17 @@ bool handle_command(char cmd) {
     if (fs_file_open(&rfile, filename, LFS_O_RDONLY) == 0) {
       const unsigned int sz = (unsigned int)fs_file_size(&rfile);
       if (sz > 0) {
-        char *buf = malloc(sz + 1);
-        buf[sz] = 0;
-        fs_file_read(&rfile, buf, sz);
-        serial(buf);
-        free(buf);
+        // in pieces, as it is: a whole copy in RAM can fail while a big
+        // script runs, and as serial()'s format a '%' in the file was
+        // taken for a conversion. Up to the '\0' uploads end with
+        static uint8_t piece[256];
+        int32_t n;
+        while ((n = fs_file_read(&rfile, piece, sizeof piece)) > 0) {
+          const uint8_t *nul = memchr(piece, '\0', (size_t)n);
+          serial_tx(piece, nul ? (uint32_t)(nul - piece) : (uint32_t)n);
+          if (nul)
+            break;
+        }
       } else {
         serial("-- empty file\r\n");
       }
