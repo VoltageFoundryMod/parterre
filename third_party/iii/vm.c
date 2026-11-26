@@ -366,6 +366,7 @@ static int l_fs_read_file(lua_State *l) {
 typedef struct {
   lfs_file_t file;
   bool done;
+  bool binary; // a compiled chunk: read it all ('\0' is data)
   char buf[FILE_READER_CHUNK];
 } file_reader_t;
 
@@ -382,7 +383,7 @@ static const char *file_reader(lua_State *l, void *ud, size_t *size) {
     r->done = true;
     return NULL;
   }
-  const char *nul = memchr(r->buf, '\0', (size_t)n);
+  const char *nul = r->binary ? NULL : memchr(r->buf, '\0', (size_t)n);
   if (nul != NULL) {
     r->done = true;
     *size = (size_t)(nul - r->buf);
@@ -418,6 +419,7 @@ static int vm_loadfile(lua_State *l, const char *path, const char *name) {
     return VM_FILE_NOT_FOUND;
   }
   r->done = false;
+  r->binary = false;
   int res = lua_load(l, file_reader, r, lua_tostring(l, -1), NULL);
   fs_file_close(&r->file);
   free(r);
@@ -466,8 +468,148 @@ bool vm_test_file(const char *path, const char *name) {
   return true;
 }
 
+// compiled scripts, cached: compiling a big script needs far more memory
+// than the code it makes (trellis: ~290 KB at the peak, for ~200 KB of
+// code), and running one compiles it each time. So a script of
+// VM_CACHE_MIN bytes or more, once compiled, is saved next to its source
+// as Lua bytecode (name.luac; with its debug info, so errors still name
+// the line), and later runs load that instead, which needs little more
+// than the code itself. The cache starts with the source's size and
+// CRC-32, and whether it was stripped (vm_cache_strip): a source changed
+// in any way (an upload, fs_write_file) is compiled again and the cache
+// rewritten, as is a cache stripped otherwise than asked now, or one this
+// Lua can't load (a firmware with another Lua).
+#define VM_CACHE_MIN 8192
+#define VM_CACHE_MAGIC 0x64696969u // "iiid"
+#define VM_NO_CACHE (-2)
+
+static uint32_t vm_crc32(uint32_t crc, const uint8_t *data, size_t len) {
+  crc = ~crc;
+  while (len--) {
+    crc ^= *data++;
+    for (int k = 0; k < 8; k++)
+      crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1u)));
+  }
+  return ~crc;
+}
+
+// the file's size and CRC-32; false if it can't be read
+static bool vm_file_crc(const char *path, uint32_t *size, uint32_t *crc) {
+  file_reader_t *r = malloc(sizeof(file_reader_t));
+  if (r == NULL)
+    return false;
+  if (fs_file_open(&r->file, path, LFS_O_RDONLY) != 0) {
+    free(r);
+    return false;
+  }
+  *size = 0;
+  *crc = 0;
+  int32_t n;
+  while ((n = fs_file_read(&r->file, r->buf, FILE_READER_CHUNK)) > 0) {
+    *crc = vm_crc32(*crc, (const uint8_t *)r->buf, (size_t)n);
+    *size += (uint32_t)n;
+  }
+  fs_file_close(&r->file);
+  free(r);
+  return true;
+}
+
+// path + "c", in a static buffer (used only while a chunk loads)
+static const char *vm_cache_path(const char *path) {
+  static char cpath[LFS_NAME_MAX + 2];
+  const size_t n = strlen(path);
+  if (n < 5 || n + 1 > LFS_NAME_MAX || strcmp(path + n - 4, ".lua") != 0)
+    return NULL;
+  memcpy(cpath, path, n);
+  cpath[n] = 'c';
+  cpath[n + 1] = '\0';
+  return cpath;
+}
+
+// the cached chunk, if it's this source's: LUA_OK and the function
+// pushed, else VM_NO_CACHE and nothing
+static int vm_load_cache(lua_State *l, const char *cpath, const char *path,
+                         uint32_t size, uint32_t crc, bool strip) {
+  file_reader_t *r = malloc(sizeof(file_reader_t));
+  if (r == NULL)
+    return VM_NO_CACHE;
+  if (fs_file_open(&r->file, cpath, LFS_O_RDONLY) != 0) {
+    free(r);
+    return VM_NO_CACHE;
+  }
+  uint32_t head[4];
+  int res = VM_NO_CACHE;
+  if (fs_file_read(&r->file, head, sizeof head) == (int32_t)sizeof head &&
+      head[0] == VM_CACHE_MAGIC && head[1] == size && head[2] == crc &&
+      head[3] == (uint32_t)strip) {
+    r->done = false;
+    r->binary = true;
+    lua_pushfstring(l, "@%s", path);
+    res = lua_load(l, file_reader, r, lua_tostring(l, -1), "b");
+    lua_remove(l, -2);
+    if (res != LUA_OK) {
+      lua_pop(l, 1); // its error: compile the source instead
+      res = VM_NO_CACHE;
+    }
+  }
+  fs_file_close(&r->file);
+  free(r);
+  return res;
+}
+
+static int vm_cache_writer(lua_State *l, const void *p, size_t sz, void *ud) {
+  (void)l;
+  return fs_file_write((lfs_file_t *)ud, p, sz) == (int32_t)sz ? 0 : 1;
+}
+
+// whether a script's cache may leave out its debug info (line numbers, the
+// names of locals): smaller in RAM, but its errors give no lines. No by
+// default; a device can say yes for scripts it knows (achene: its bundled
+// scripts, while they're as it installed them)
+__attribute__((weak)) bool vm_cache_strip(const char *path, uint32_t size,
+                                          uint32_t crc) {
+  (void)path;
+  (void)size;
+  (void)crc;
+  return false;
+}
+
+// the function on top of the stack, saved as path's cache
+static void vm_save_cache(lua_State *l, const char *cpath, uint32_t size,
+                          uint32_t crc, bool strip) {
+  static lfs_file_t file; // keep it off the small C stack
+  const int flags = LFS_O_CREAT | LFS_O_WRONLY | LFS_O_TRUNC;
+  if (fs_file_open(&file, cpath, flags) != 0)
+    return;
+  const uint32_t head[4] = {VM_CACHE_MAGIC, size, crc, (uint32_t)strip};
+  bool ok = fs_file_write(&file, head, sizeof head) == (int32_t)sizeof head;
+  if (ok)
+    ok = lua_dump(l, vm_cache_writer, &file, strip) == 0;
+  fs_file_close(&file);
+  if (!ok)
+    fs_remove(cpath);
+}
+
+// compile path, or load its cache: as vm_loadfile()
+static int vm_loadfile_cached(lua_State *l, const char *path) {
+  const char *cpath = vm_cache_path(path);
+  uint32_t size = 0, crc = 0;
+  if (cpath == NULL || !vm_file_crc(path, &size, &crc) || size < VM_CACHE_MIN)
+    return vm_loadfile(l, path, path);
+  const bool strip = vm_cache_strip(path, size, crc);
+  if (vm_load_cache(l, cpath, path, size, crc, strip) == LUA_OK)
+    return LUA_OK;
+  const int res = vm_loadfile(l, path, path);
+  if (res == LUA_OK) {
+    serial("-- compiled %s, saving it as %s%s\r\n", path, cpath,
+           strip ? " (without its line numbers)" : "");
+    vm_save_cache(l, cpath, size, crc, strip);
+  }
+  return res;
+}
+
 static int vm_dofile(lua_State *l, const char *path) {
-  int res = vm_loadfile(l, path, path);
+  int res = vm_loadfile_cached(l, path);
   if (res == LUA_OK)
     res = lua_pcall(l, 0, LUA_MULTRET, 0);
   return res;
@@ -509,6 +651,9 @@ static int l_fs_write_file(lua_State *l) {
 
 static int l_fs_remove_file(lua_State *l) {
   const char *path = lua_tostring(l, 1);
+  const char *cpath = vm_cache_path(path);
+  if (cpath != NULL)
+    fs_remove(cpath); // its cache, if any
   if (fs_remove(path) == 0) {
     lua_pushboolean(l, 1);
   } else {

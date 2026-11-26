@@ -11,6 +11,8 @@ extern void vm_deinit();
 extern bool vm_test_script(const char *buf);
 extern bool vm_test_file(const char *path, const char *name);
 extern bool vm_test_buffer(const char *buf, size_t len, const char *name);
+// a device may define it: see vm.c
+extern bool vm_cache_strip(const char *path, uint32_t size, uint32_t crc);
 extern bool vm_run_buffer(const char *buf);
 extern void vm_handle_midi(uint8_t data1, uint8_t data2, uint8_t data3);
 extern void vm_handle_metro(int index, int stage);
