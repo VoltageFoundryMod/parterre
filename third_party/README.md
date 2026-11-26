@@ -51,10 +51,10 @@ To check a patch against upstream: `git -C <tehn/iii clone> apply --check <patch
 | `e4e1b89`            | keep output printed before a host connects (fixup `9dabcc7`)     | startup prints (e.g. many-roads' script list, `-- init:` lines) show up when diii connects                                                                                                              | merged #12 |
 | `2370d87`            | optional fixed offset for the status sector and filesystem       | a device can pin them (`III_FLASH_STATUS_OFFSET`) so updates that grow the program keep the files; we use 0x80000 | merged #15 |
 | `d5d6ecd`            | lib.lua leaves the MIDI helpers to C                             | since the v1.1.3 merge lib.lua defined them again in Lua, replacing `bd89884`'s C ones (every note through Lua); found on achene, whose sequencer sends notes from the clock                              | held back |
-| `896afdf`            | an upload short of memory stops the script and compiles again    | the upload's check compiled inside the running script's memory; on achene a 139 KB script uploaded over itself failed (not enough memory) and now is written                                             | not sent  |
-| `cb0a27c`            | scripts of 8 KB or more run from cached bytecode (`name.luac`)   | no compile at load; `vm_cache_strip()` (weak, no by default) lets a device drop debug info. achene, 139 KB script: Lua 243 KB, with its bundled copy stripped 206 KB (peak 284 → 240). Untested on a grid | not sent  |
-| `572f8df`            | the repl's print sends a file in pieces                          | it held the whole file in RAM and used it as `serial()`'s format, where a `%` (Lua's modulo) was taken for a conversion                                                                                 | not sent  |
-| `354caae`            | an upload keeps lines longer than the repl's 512-byte buffer      | the repl dropped an overlong line, cutting the file: achene's trellis presets (a track a line, thousands of characters) failed to upload. Tested on the PC (repl.c with stand-ins): a 6000-character line arrives whole, was cut to 384 bytes | not sent  |
+| `896afdf`            | an upload short of memory stops the script and compiles again    | the upload's check compiled inside the running script's memory; on achene a 139 KB script uploaded over itself failed (not enough memory) and now is written                                             | ask first |
+| `cb0a27c`            | scripts of 8 KB or more run from cached bytecode (`name.luac`)   | no compile at load; `vm_cache_strip()` (weak, no by default) lets a device drop debug info. achene, 139 KB script: Lua 243 KB, with its bundled copy stripped 206 KB (peak 284 → 240). Untested on a grid | ask first |
+| `572f8df`            | the repl's print sends a file in pieces                          | it held the whole file in RAM and used it as `serial()`'s format, where a `%` (Lua's modulo) was taken for a conversion                                                                                 | to send |
+| `354caae`            | an upload keeps lines longer than the repl's 512-byte buffer      | the repl dropped an overlong line, cutting the file: achene's trellis presets (a track a line, thousands of characters) failed to upload. Tested on the PC (repl.c with stand-ins): a 6000-character line arrives whole, was cut to 384 bytes | to send |
 | `262253f`, `08e814d`, `49a5762`, `0b36e9a`, `74bb23a` | lib.lua version `v1.1.x-ogN`                       | fork-only, so devices replace their lib.lua; don't send                                                                                                                                                 | fork only |
 | (upstream)           | USB MIDI sends only a message's own bytes                        | from achene; a clock went out as F8 00 00, the zeros as stray packets; came in with the merge `ff6bb66`                                                                                                 | merged #14 |
 | (upstream)           | `_quote` keeps the zeros of whole numbers                        | from achene; `pset_write` wrote 0 as nothing and 100 as 1; came in with the merge `ff6bb66`                                                                                                             | merged #13 |
@@ -68,6 +68,19 @@ MIDI helpers are the only code change left, held back: no gain on their own (see
 docs/BENCHMARKS.md). Upstream's checked-in `resource/lib_lua.c` still holds the v1.1.2
 `lib.lua` (without #13), even in v1.1.3; our build regenerates it, so that only matters to
 devices built from upstream as is.
+
+**What's left to send** (reviewed 2026-11-26). *to send*: bugs in
+upstream's own code that any iii device can hit, small and with nothing
+device-specific: `572f8df` (the repl's `^^p` printed a file as `serial()`'s
+format, so a Lua `%` was taken for a conversion, and it held the whole file
+in RAM) and `354caae` (an upload drops a line over 512 bytes). They can go
+as one PR, "repl: print and upload files of any shape". *ask first*: changes
+of behaviour, worth an issue before a PR: `896afdf` stops the running script
+when an upload can't compile beside it (helps big scripts; users see their
+script stop), and `cb0a27c` writes `name.luac` next to each script of 8 KB
+or more (faster, lighter loads, measured on achene and a grid; but files
+users didn't make, and flash). *held back*: the C MIDI helpers (`bd89884`,
+`d5d6ecd`), no gain measured. The `-ogN` version bumps are fork-only.
 
 `make iii-patches` exports every iii commit since the subtree was added. When a
 change lands upstream, mark it *merged* here; to leave it out of later
