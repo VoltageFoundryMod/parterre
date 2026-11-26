@@ -13,7 +13,13 @@ extern void *_sbrk(int incr);
 extern void *__real__sbrk(int incr);
 
 static uint32_t peak_used = 0;
-static uintptr_t heap_high_water = 0;
+// volatile: the compiler can't know that malloc() calls back into
+// __wrap__sbrk (that's --wrap, at link time), so without it og_heap_stats'
+// "keep it, probe, put it back" looked like storing a value the variable
+// already held and was compiled away: the probe's trial allocations then
+// counted as real (the high water read the whole heap after any
+// gh_mem(true), which greenhouse sends with each file-list refresh)
+static volatile uintptr_t heap_high_water = 0;
 
 // Linked with --wrap=_sbrk: newlib grows the heap through _sbrk, so this sees
 // every growth, including spikes inside a single Lua call (e.g. compiling a
