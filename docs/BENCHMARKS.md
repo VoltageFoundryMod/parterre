@@ -14,7 +14,8 @@ full collection. Before that, `midi_to_msg` meant what is now `alloc+gc`.
 
 | Build              | Clock   | Script | Lua   | Heap free / largest | High water   | loop    | midi_to_msg | alloc+gc | gc      | redraw  |
 | ------------------ | ------- | ------ | ----- | ------------------- | ------------ | ------- | ----------- | -------- | ------- | ------- |
-| parterre-0.4.5     | 125 MHz | kria   | 107.2 | 102.5 / 58.4        | 137.4 of 221 | 4.64 µs | 53.1 µs     | 57.1 µs  | 1.60 ms | 1.01 ms |
+| parterre-0.4.5 Zero | 125 MHz | -      | 36.3  | 178.5 / 87.2        | 137.4 of 221 | 4.64 µs | 55.0 µs     | 58.3 µs  | 0.76 ms | 1.01 ms |
+| parterre-0.4.5 Zero | 125 MHz | kria   | 107.3 | 102.4 / 59.6        | 137.4 of 221 | 4.64 µs | 53.6 µs     | 57.7 µs  | 1.60 ms | 1.01 ms |
 | og-0.3.3 +Lua midi | 125 MHz | -      | 43.5  | 171.7 / 89.4        | 67.2 of 223  | 4.60 µs | 42.0 µs     | 54.6 µs  | 2.46 ms | 0.98 ms |
 | og-0.3.3 C midi    | 125 MHz | -      | 41.7  | 173.5 / 88.9        | 71.2 of 223  | 4.60 µs | 46.8 µs     | 52.9 µs  | 2.88 ms | 0.99 ms |
 | og-0.3.3 fresh     | 125 MHz | kria   | 110.6 | 99.4 / 61.3         | 155.2 of 223 | 4.60 µs | 47.0 µs     | 54.2 µs  | 2.18 ms | 1.00 ms |
@@ -42,11 +43,14 @@ og-0.2.1 + kria: out of memory while loading (fixed by the streaming loader in o
 
 ## Findings
 
-- **Cached bytecode** (parterre-0.4.5, kria loaded from `kria_iii.luac`): loading kria peaks
-  at 137.4 KB, against 149.4 KB when the same build compiles it (that boot's high water) and
-  155.2 of 223 for og-0.3.3. Lua 107.2 KB (110.6 before; the C MIDI helpers are 1.8 of it).
-  Speed unchanged: loop and redraw as before, midi_to_msg and alloc+gc within what code layout
-  moves.
+- **parterre-0.4.5 rows are from the kit's Waveshare RP2040-Zero** ("Zero"), not the XIAO
+  the rows above come from; same speed as the XIAO's og-0.3.3 despite the Zero's slower flash
+  clock. Lua without a script 36.3 KB (41.7 for og-0.3.3), with kria 107.3 (110.6; the C MIDI
+  helpers are 1.8 of it).
+- **Cached bytecode** (parterre-0.4.5, kria loaded from `kria_iii.luac`): the boot alone takes
+  the high water to 137.4 KB, and loading kria from its cache stays under that; compiling it
+  instead (same build, cache removed) took it to 149.4. So the cached load peaks at least
+  12 KB lower, by how much more isn't visible here. Speed unchanged.
 - **gc column changed** (November 2026, og_bench.lua): it now clears the garbage first and
   averages 10 full collections. It used to be one collection right after the alloc+gc loop,
   so it also freed whatever garbage that loop left, which depends on where the collector's
