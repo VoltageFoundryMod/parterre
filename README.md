@@ -131,7 +131,7 @@ In iii mode, every MIDI message a script sends over USB also goes out GPIO0 (XIA
 
 This requires soldering the resistors and the jack to the appropriate pins on the grid and modding the case to fit the jack.
 
-For type A gear, swap tip and ring, or use an A/B adapter. In the printed enclosure, a low jack (about 5 mm tall) fits on the USB end next to the RP2040-Zero, with its hole centered on the seam between the top and bottom parts. It's out only; MIDI in stays on USB.
+For type A gear (the MIDI standard: most other brands), swap tip and ring, keeping each resistor with its signal (tip ← 10 Ω ← GPIO0, ring ← 33 Ω ← 3V3), or use an A/B adapter. Tested wired as type A with an M-Vave FM1. In the printed enclosure, a low jack (about 5 mm tall) fits on the USB end next to the RP2040-Zero, with its hole centered on the seam between the top and bottom parts. It's out only; MIDI in stays on USB.
 
 ## greenhouse
 
