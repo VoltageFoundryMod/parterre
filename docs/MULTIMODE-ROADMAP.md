@@ -244,7 +244,7 @@ Everything in §1.3. **Acceptance**, in order:
 3. ✅ **RP2040-Zero in the enclosure**: same, plus serial mode on **norns** (awake, mlr, kria) and
    serialosc on desktop behave exactly like the Arduino firmware.
 
-### M1 — Latency and bus
+### M1 — Latency and bus ✅ (released in parterre-0.4.2)
 
 - ✅ Make I2C clock tests easy (parterre-0.4.1): `PT_I2C_HZ=400000 pio run -e rp2040_zero` (or
   `custom_pt_i2c_hz`); a clock other than 100 kHz shows in the version (`-i2c400k`).
@@ -351,7 +351,7 @@ clock (board headers: clk/4 vs clk/2), so measure on a Zero before drawing concl
 Loading kria peaks at 155 of 223 KB, so compiling big scripts no longer needs work. Optional
 speedups are under §5; sending the patches upstream is M11.
 
-### M5 — diii fork (PWA + Open Grid features)
+### M5 — diii fork (PWA + Open Grid features) ✅
 
 > **November 2026:** diii moved out of this repo into its own,
 > [carlosedp/web-diii](https://github.com/carlosedp/greenhouse) (locally `../web-diii`), with its
@@ -431,7 +431,7 @@ Next:
   M4 item 5). Today USB and TRS get the same messages.
 - **Accept:** Open Grid on a USB power bank plays a hardware synth directly.
 
-### M9 — Diii improvements
+### M9 — Diii improvements ✅
 
 - ✅ Virtual grid for testing and development without physical hardware (M5).
 - ✅ Add a button to print the help commands (button that calls help())
