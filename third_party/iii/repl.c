@@ -32,6 +32,9 @@ static char filename[256] = "init.lua";
 #define LINE_BUFFER_SIZE 512
 static char line_buf[LINE_BUFFER_SIZE + 1];
 static uint32_t line_buf_pos = 0;
+// the line coming in went on past the buffer, in an upload: its start is in
+// the upload already, so what's left of it is never a command
+static bool line_spilled = false;
 
 //--- other state
 bool in_rx_script = false;
@@ -260,7 +263,7 @@ bool handle_command(char cmd) {
 void repl_handle_byte(uint8_t b) {
   if (b == '\n' || b == '\r') {
     // if (b == '\n') {
-    if (line_buf[0] == '^' && line_buf[1] == '^') {
+    if (!line_spilled && line_buf[0] == '^' && line_buf[1] == '^') {
       char c = line_buf[2];
       if (c >= 97 && c <= 122) {
         // convert lowercase to uppercase ascii
@@ -283,6 +286,7 @@ void repl_handle_byte(uint8_t b) {
       }
     }
     line_buf_pos = 0;
+    line_spilled = false;
     // ECHO
     // printf("\r\n");
     return;
@@ -292,6 +296,14 @@ void repl_handle_byte(uint8_t b) {
   // non-line-ending characters
   //serial("%c", b);
   if (line_buf_pos < LINE_BUFFER_SIZE) {
+    line_buf[line_buf_pos++] = b;
+  } else if (in_rx_script && (line_spilled || line_buf[0] != '^' || line_buf[1] != '^')) {
+    // a line longer than the buffer, in an upload (a long table in a
+    // preset, say): what's gathered goes into the upload and the line
+    // carries on, instead of being lost
+    upload_append(line_buf, line_buf_pos);
+    line_spilled = true;
+    line_buf_pos = 0;
     line_buf[line_buf_pos++] = b;
   } else {
     // good chance we're getting sent serialosc gibberish?
