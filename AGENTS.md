@@ -65,7 +65,7 @@ Agents can build but can't run anything on the device. The maintainer flashes an
   steps** (exact REPL lines, what output to expect, what would indicate failure). Say clearly
   what is untested.
 - Performance or memory changes: upload `og_bench.lua` (in the owner's `iii-scripts`, locally
-  `../iii-scripts`, with the other iii scripts), then compare `og_bench()` and `og_bench("kria_iii.lua")` against the
+  `../iii-scripts/og_bench/`; `kria_iii.lua` is in its untracked `others/`), then compare `og_bench()` and `og_bench("kria_iii.lua")` against the
   previous build, at the same clock, and record the lines in `docs/BENCHMARKS.md`. Change one
   thing per measurement.
 - If a board stops answering: power up and press BOOT while the status LED is **cyan** (first
