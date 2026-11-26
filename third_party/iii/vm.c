@@ -425,9 +425,33 @@ static int vm_loadfile(lua_State *l, const char *path, const char *name) {
   return res;
 }
 
+static int vm_dofile(lua_State *l, const char *path);
+
+// an upload is compiled in the running script's state, so a big script
+// running leaves too little memory to compile a big upload. After an out
+// of memory error, stop the script (a fresh state with lib.lua and no
+// init.lua, as after a clean restart) and let the caller compile again.
+// true if it did
+static bool vm_stop_for_compile(int res) {
+  if (res != LUA_ERRMEM)
+    return false;
+  lua_pop(L, 1); // the error message
+  serial("-- not enough memory with the script running: stopped it\r\n");
+  vm_deinit();
+  vm_init(false);
+  if (L == NULL)
+    return false;
+  if (vm_dofile(L, "lib.lua") != LUA_OK)
+    lua_pop(L, 1);
+  lua_gc(L, LUA_GCCOLLECT);
+  return true;
+}
+
 // like vm_test_script(), for a file: compile it, print the result
 bool vm_test_file(const char *path, const char *name) {
   int res = vm_loadfile(L, path, name);
+  if (vm_stop_for_compile(res))
+    res = vm_loadfile(L, path, name);
   if (res == VM_FILE_NOT_FOUND) {
     serial("-- lua error:\r\ncan't open %s\r\n", path);
     return false;
@@ -688,6 +712,11 @@ bool vm_test_buffer(const char *buf, size_t len, const char *name) {
   lua_pushfstring(L, "@%s", name); // errors read "file.lua:12:"
   int res = luaL_loadbuffer(L, buf, len, lua_tostring(L, -1));
   lua_remove(L, -2);
+  if (vm_stop_for_compile(res)) {
+    lua_pushfstring(L, "@%s", name);
+    res = luaL_loadbuffer(L, buf, len, lua_tostring(L, -1));
+    lua_remove(L, -2);
+  }
   if (res != LUA_OK) {
     serial("-- lua error:\r\n%s\r\n", lua_tostring(L, -1));
     lua_pop(L, 1);
